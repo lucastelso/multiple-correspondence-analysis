@@ -128,3 +128,33 @@ class ModernMCA(BaseEstimator, TransformerMixin):
         index = self.row_names_ if self.row_names_ is not None else range(coords.shape[0])
         return pd.DataFrame(coords, index=index, columns=cols)
     
+    def get_column_stats(self):
+        if self.V_ is None:
+            raise ValueError("No trained model.")
+            
+        # Coordinates with raw eigenvalues
+        scale_factor = np.sqrt(self.eigenvalues_raw_[:self.n_components])
+        coords = self.V_ * scale_factor / np.sqrt(self.column_masses_)[:, None]
+        
+        cols = [f"Dim {i+1}" for i in range(self.n_components)]
+        df_coords = pd.DataFrame(coords, index=self.categories_, columns=cols)
+        
+        # Contributions with original metrics
+        contrib = (self.column_masses_[:, None] * coords**2) / self.eigenvalues_raw_[:self.n_components]
+        df_contrib = pd.DataFrame(contrib * 100, index=self.categories_, columns=[f"Contr {i+1}" for i in range(self.n_components)])
+        
+        return df_coords, df_contrib
+    
+    def transform(self, X):
+        Z_new = self.encoder_.transform(X)
+        Z_new = Z_new / np.sum(Z_new, axis=1)[:, None]
+        
+        col_coords, _ = self.get_column_stats()
+        coords = Z_new @ col_coords.values
+        
+        # Transição usa autovalores CRUS
+        for i in range(self.n_components):
+            if self.eigenvalues_raw_[i] > 0:
+                coords[:, i] /= np.sqrt(self.eigenvalues_raw_[i])
+                
+        return pd.DataFrame(coords, columns=[f"Dim {i+1}" for i in range(self.n_components)])
