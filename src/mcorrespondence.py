@@ -152,7 +152,7 @@ class ModernMCA(BaseEstimator, TransformerMixin):
         col_coords, _ = self.get_column_stats()
         coords = Z_new @ col_coords.values
         
-        # Transição usa autovalores CRUS
+        # Raw eigenvalues
         for i in range(self.n_components):
             if self.eigenvalues_raw_[i] > 0:
                 coords[:, i] /= np.sqrt(self.eigenvalues_raw_[i])
